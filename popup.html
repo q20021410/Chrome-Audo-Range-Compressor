@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { width: 320px; background-color: #0f172a; color: #f8fafc; font-family: sans-serif; margin: 0; padding: 16px; overflow-x: hidden; }
+    .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    h2 { margin: 0; font-size: 16px; color: #34d399; }
+    
+    /* 💡 미등록 사이트 경고 배너 */
+    .warning-banner { display: none; background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; padding: 12px; border-radius: 8px; font-size: 12px; text-align: center; margin-bottom: 16px; line-height: 1.5; }
+    .add-site-btn { margin-top: 8px; background-color: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s; }
+    .add-site-btn:hover { background-color: #dc2626; }
+
+    .slider-group { margin-bottom: 16px; }
+    .slider-info { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #d1d5db; margin-bottom: 4px; }
+    .label-wrap { display: flex; align-items: center; }
+    
+    /* 💡 툴팁 디자인 수정 (너비 210px 확장, 줄바꿈 최적화) */
+    .tooltip { position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: help; color: #0f172a; background-color: #34d399; border-radius: 50%; width: 14px; height: 14px; font-size: 10px; font-weight: bold; margin-left: 6px; }
+    .tooltip .tooltip-text { visibility: hidden; width: 210px; background-color: #1f2937; color: #e5e7eb; text-align: left; border-radius: 6px; padding: 10px; font-size: 11px; font-weight: normal; position: absolute; z-index: 10; bottom: 150%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; border: 1px solid #374151; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); line-height: 1.5; word-break: break-word; }
+    .tooltip .tooltip-text::after { content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 5px; border-style: solid; border-color: #1f2937 transparent transparent transparent; }
+    .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+    
+    .tooltip.left-align .tooltip-text { left: -10px; transform: none; }
+    .tooltip.left-align .tooltip-text::after { left: 17px; transform: none; }
+    .tooltip.right-align .tooltip-text { left: auto; right: -10px; transform: none; }
+    .tooltip.right-align .tooltip-text::after { left: auto; right: 17px; transform: none; }
+
+    .flex-row { display: flex; gap: 16px; }
+    .flex-col { flex: 1; }
+    input[type=range] { width: 100%; accent-color: #10b981; cursor: pointer; }
+    
+    /* 토글 스위치 */
+    .toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    /* 프리셋 메뉴 */
+    .preset-container { margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
+    .preset-label { font-size: 12px; color: #9ca3af; margin-bottom: 6px; display: block; font-weight: bold; }
+    .preset-select { width: 100%; background-color: #1f2937; color: #e5e7eb; border: 1px solid #4b5563; border-radius: 8px; padding: 8px 12px; font-size: 13px; outline: none; cursor: pointer; transition: 0.2s; }
+    .preset-select:focus { border-color: #10b981; }
+  </style>
+</head>
+<body>
+  <div class="glass">
+    <div class="header">
+      <h2>사운드 압축 활성화</h2>
+      <label class="toggle">
+        <input type="checkbox" id="enableToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div id="warningBanner" class="warning-banner">
+      현재 사이트는 자동 압축 대상이 아닙니다.<br>
+      <button id="addSiteBtn" class="add-site-btn">+ 이 사이트도 추가하기</button>
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-info">
+        <div class="label-wrap">볼륨 게인 <span class="tooltip left-align">!<span class="tooltip-text">전체 소리 크기를 강제로 증폭시키거나 줄입니다. 압축으로 인해 작아진 소리를 보상할 때 사용합니다.</span></span></div>
+        <span id="gainVal">1.0</span>
+      </div>
+      <input type="range" id="gain" min="0.1" max="3.0" step="0.1" value="1.0">
+    </div>
+    
+    <div class="slider-group">
+      <div class="slider-info">
+        <div class="label-wrap">임계값 (Threshold) <span class="tooltip left-align">!<span class="tooltip-text">이 기준치(dB)를 넘는 큰 소리부터 압축(볼륨 감소)이 시작됩니다. 0dB에 가까울수록 아주 큰 소리만 잡아냅니다.</span></span></div>
+        <span id="thresholdVal">-50dB</span>
+      </div>
+      <input type="range" id="threshold" min="-100" max="0" step="1" value="-50">
+    </div>
+    
+    <div class="slider-group">
+      <div class="slider-info">
+        <div class="label-wrap">니 (Knee) <span class="tooltip left-align">!<span class="tooltip-text">임계값을 넘을 때 압축이 걸리는 전환점의 부드러운 정도입니다. 값이 클수록 소리가 더 자연스럽게 줄어듭니다.</span></span></div>
+        <span id="kneeVal">40</span>
+      </div>
+      <input type="range" id="knee" min="0" max="40" step="1" value="40">
+    </div>
+    
+    <div class="slider-group">
+      <div class="slider-info">
+        <div class="label-wrap">압축 비율 (Ratio) <span class="tooltip left-align">!<span class="tooltip-text">임계값을 넘은 소리를 얼마나 강력하게 억누를지 정합니다. 값이 높을수록 큰 소리를 더 많이 깎아냅니다.</span></span></div>
+        <span id="ratioVal">12</span>
+      </div>
+      <input type="range" id="ratio" min="1" max="20" step="0.5" value="12">
+    </div>
+    
+    <div class="flex-row slider-group" style="margin-bottom: 0;">
+      <div class="flex-col">
+        <div class="slider-info">
+          <div class="label-wrap">어택 <span class="tooltip left-align">!<span class="tooltip-text">갑자기 큰 소리가 났을 때 컴프레서가 작동하기까지 걸리는 시간입니다. 짧을수록 즉시 소리를 줄입니다.</span></span></div>
+          <span id="attackVal">0s</span>
+        </div>
+        <input type="range" id="attack" min="0" max="1" step="0.01" value="0">
+      </div>
+      <div class="flex-col">
+        <div class="slider-info">
+          <div class="label-wrap">릴리즈 <span class="tooltip right-align">!<span class="tooltip-text">큰 소리가 지나간 후, 원래 복구되기까지 걸리는 시간입니다. 길어야 펌핑(소리 울렁거림)이 적습니다.</span></span></div>
+          <span id="releaseVal">0.25s</span>
+        </div>
+        <input type="range" id="release" min="0" max="1" step="0.01" value="0.25">
+      </div>
+    </div>
+    
+    <div class="preset-container">
+      <label class="preset-label">추천 프리셋 설정</label>
+      <select id="presetSelect" class="preset-select">
+        <option value="custom">사용자 지정 (Custom)</option>
+        <option value="default">기본 설정 (초기화)</option>
+        <option value="broadcast">일반 방송/유튜브 시청 (부드럽게)</option>
+        <option value="limiter">깜놀 방지 / 공포게임용 (하드 리미터)</option>
+      </select>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
